@@ -1,0 +1,12 @@
+{
+  "name": "dsh-tts",
+  "version": "1.0.0",
+  "description": "文字转语音播报插件：注册 speak 与 tts_voices 工具，通过 Windows SAPI 把文字朗读出来并从扬声器播放。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": {
+      "default": "./index.js"
+    }
+  }
+}
