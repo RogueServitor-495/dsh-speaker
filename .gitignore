@@ -1,0 +1,3 @@
+# 本地测试依赖（指向 DSH 缓存的 @deepseek-ai/dsh-tools），不提交
+node_modules/
+.DS_Store

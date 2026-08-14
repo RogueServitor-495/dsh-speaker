@@ -1,8 +1,10 @@
 // dsh-tts：文字转语音播报插件。
 // 注册两个工具：
 //   - speak       把文字朗读出来并从默认扬声器播放
-//   - tts_voices  列出系统已安装的 SAPI 语音
-// 通过 Windows 自带的 SAPI 语音引擎（离线、无需联网、无需 API Key）实现。
+//   - tts_voices  列出系统已安装的语音
+// 双平台实现（均离线、无需联网、无需 API Key）：
+//   - Windows：系统自带的 SAPI 语音引擎（speech.ps1，powershell.exe 调用）
+//   - macOS ：系统自带的 say / afplay（macos.mjs）
 //
 // 插件结构（与 demo-hello 一致）：
 //   name   —— 插件名（用于日志 / 配置键）
@@ -15,12 +17,16 @@ import { writeFile, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as macos from "./macos.mjs";
 
 export const name = "dsh-tts";
 export const inject = ["tools"];
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SPEECH_PS1 = join(__dirname, "speech.ps1");
+
+// 当前运行平台：win32（Windows SAPI）或 darwin（macOS say/afplay）
+const PLATFORM = process.platform;
 
 // 判断文字是否含中日韩字符，用于未指定语音时自动选中文语音
 const CJK_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/;
@@ -92,6 +98,12 @@ function runPowershell(args, signal) {
  * 返回实际使用的语音描述（从 stdout 的 "OK|<desc>" 解析）。
  */
 async function speakText(text, voice, rate, volume, signal) {
+  if (PLATFORM === "darwin") {
+    return macos.speakText(text, { voice, rate, volume }, signal);
+  }
+  if (PLATFORM !== "win32") {
+    throw new Error(`dsh-tts 暂不支持当前平台 ${PLATFORM}：仅支持 Windows (SAPI) 与 macOS (say)。`);
+  }
   const dir = await mkdtemp(join(tmpdir(), "dsh-tts-"));
   const textFile = join(dir, "speech.txt");
   try {
@@ -127,7 +139,7 @@ export function apply(ctx) {
       voice: {
         type: "string",
         description:
-          "声音名称或匹配关键字（例如 Huihui、Zira、Chinese、English、zh-CN）。省略时自动选择：含中文的文字用中文语音，否则用系统默认语音。可用 tts_voices 工具查看全部可用语音。"
+          "声音名称或匹配关键字（Windows 示例：Huihui、Zira；macOS 示例：Tingting、Meijia、Eddy；也可用地区如 zh-CN、en-US、Chinese、English）。省略时自动选择：含中文的文字用中文语音，否则用系统默认语音。可用 tts_voices 工具查看全部可用语音。"
       },
       rate: {
         type: "integer",
@@ -169,10 +181,15 @@ export function apply(ctx) {
         throw new Error("要朗读的文字不能为空。");
       }
 
-      // 未指定语音且文字含中文时，自动优先中文语音
+      // 未指定语音且文字含中文时，自动优先中文语音（Windows 用 SAPI 关键字，
+      // macOS 直接解析出具体的中文语音名，如 Tingting）
       let voice = typeof args.voice === "string" ? args.voice.trim() : "";
       if (!voice && CJK_RE.test(text)) {
-        voice = "Chinese";
+        if (PLATFORM === "win32") {
+          voice = "Chinese";
+        } else if (PLATFORM === "darwin") {
+          voice = (await macos.pickChineseVoice()) || "";
+        }
       }
 
       let rate = typeof args.rate === "number" ? args.rate : 0;
@@ -259,6 +276,16 @@ export function apply(ctx) {
     },
 
     async execute(_args, exec) {
+      if (PLATFORM === "darwin") {
+        const voices = await macos.listVoices();
+        return {
+          count: voices.length,
+          voices: voices.map((v) => ({ name: v.name, id: v.locale }))
+        };
+      }
+      if (PLATFORM !== "win32") {
+        throw new Error(`dsh-tts 暂不支持当前平台 ${PLATFORM}：仅支持 Windows (SAPI) 与 macOS (say)。`);
+      }
       const { stdout } = await runPowershell(["-List"], exec.signal);
       const voices = stdout
         .split(/\r?\n/)
