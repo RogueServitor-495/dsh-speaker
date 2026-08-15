@@ -18,6 +18,8 @@ import { tmpdir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import * as macos from "./macos.mjs";
+import { settingsNamespace } from "@deepseek-ai/dsh-settings";
+import z from "@deepseek-ai/schemastery";
 
 export const name = "dsh-tts";
 export const inject = ["tools"];
@@ -30,6 +32,16 @@ const PLATFORM = process.platform;
 
 // 判断文字是否含中日韩字符，用于未指定语音时自动选中文语音
 const CJK_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uffef]/;
+
+// Web 设置页命名空间：默认音色 / 语速 / 音量（持久化到 settings.yaml）。
+// voices 为只读的本机语音列表（注册时快照），供设置页下拉选择。
+const SETTINGS_NAMESPACE = settingsNamespace("dsh-tts");
+const TtsSettingsSchema = z.object({
+  voice: z.string().default(""),
+  rate: z.number().default(0),
+  volume: z.number().default(100),
+  voices: z.array(z.string()).default([])
+});
 
 /**
  * 以子进程方式运行 powershell.exe 执行 speech.ps1。
@@ -123,12 +135,41 @@ async function speakText(text, voice, rate, volume, signal) {
   }
 }
 
-export function apply(ctx) {
+/** 跨平台枚举语音名称（供设置页下拉使用；失败时返回空列表）。 */
+async function listAllVoices() {
+  try {
+    if (PLATFORM === "darwin") {
+      const voices = await macos.listVoices();
+      return voices.map((v) => v.name);
+    }
+    if (PLATFORM === "win32") {
+      const { stdout } = await runPowershell(["-List"]);
+      return stdout
+        .split(/\r?\n/)
+        .map((line) => line.split("\t")[0].trim())
+        .filter(Boolean);
+    }
+  } catch {
+    // 枚举失败不影响插件使用，设置页语音下拉为空时仍可手动输入
+  }
+  return [];
+}
+
+export async function apply(ctx) {
+  // ---- Web 设置页：默认音色 / 语速 / 音量 ----
+  let ttsSettings;
+  const voiceNames = await listAllVoices();
+  ctx.inject(["settings"], (sctx) => {
+    ttsSettings = sctx.settings.register(SETTINGS_NAMESPACE, TtsSettingsSchema, {
+      base: { voice: "", rate: 0, volume: 100, voices: voiceNames }
+    });
+  });
+
   // ---- 工具 1：speak ----
   const speak = defineTool({
     name: "speak",
     description:
-      "把一段文字转成语音并通过扬声器（默认音频输出设备）播放出来。适合播报提醒、朗读文本、语音通知等。播放是同步的：工具会在朗读完成后才返回。",
+      "把一段文字转成语音并通过扬声器（默认音频输出设备）播放出来。适合播报提醒、朗读文本、语音通知等。播放是同步的：工具会在朗读完成后才返回。未指定的音色/语速/音量会使用 Web 设置页「语音播报」分区配置的默认值。",
 
     parameters: {
       text: {
@@ -139,7 +180,7 @@ export function apply(ctx) {
       voice: {
         type: "string",
         description:
-          "声音名称或匹配关键字（Windows 示例：Huihui、Zira；macOS 示例：Tingting、Meijia、Eddy；也可用地区如 zh-CN、en-US、Chinese、English）。省略时自动选择：含中文的文字用中文语音，否则用系统默认语音。可用 tts_voices 工具查看全部可用语音。"
+          "声音名称或匹配关键字（Windows 示例：Huihui、Zira；macOS 示例：Tingting、Meijia、Eddy；也可用地区如 zh-CN、en-US、Chinese、English）。省略时使用 Web 设置页配置的默认音色；仍为空时自动选择：含中文的文字用中文语音，否则用系统默认语音。可用 tts_voices 工具查看全部可用语音。"
       },
       rate: {
         type: "integer",
@@ -181,9 +222,14 @@ export function apply(ctx) {
         throw new Error("要朗读的文字不能为空。");
       }
 
-      // 未指定语音且文字含中文时，自动优先中文语音（Windows 用 SAPI 关键字，
+      // 未显式指定的参数使用 Web 设置页的默认值（音色/语速/音量）
+      const defs = ttsSettings ? ttsSettings.get() : void 0;
+      const defVoice =
+        defs && typeof defs.voice === "string" ? defs.voice.trim() : "";
+      let voice =
+        typeof args.voice === "string" ? args.voice.trim() : defVoice;
+      // 仍未指定且文字含中文时，自动优先中文语音（Windows 用 SAPI 关键字，
       // macOS 直接解析出具体的中文语音名，如 Tingting）
-      let voice = typeof args.voice === "string" ? args.voice.trim() : "";
       if (!voice && CJK_RE.test(text)) {
         if (PLATFORM === "win32") {
           voice = "Chinese";
@@ -192,8 +238,18 @@ export function apply(ctx) {
         }
       }
 
-      let rate = typeof args.rate === "number" ? args.rate : 0;
-      let volume = typeof args.volume === "number" ? args.volume : 100;
+      let rate =
+        typeof args.rate === "number"
+          ? args.rate
+          : defs && typeof defs.rate === "number"
+            ? defs.rate
+            : 0;
+      let volume =
+        typeof args.volume === "number"
+          ? args.volume
+          : defs && typeof defs.volume === "number"
+            ? defs.volume
+            : 100;
       rate = Math.max(-10, Math.min(10, rate));
       volume = Math.max(0, Math.min(100, volume));
 

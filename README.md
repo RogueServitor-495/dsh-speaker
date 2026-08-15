@@ -96,6 +96,25 @@ node test/plugin-test.mjs
 
 覆盖：工具注册、语音枚举（`tts_voices`）、中文自动选语音、按名称/地区指定语音、语速、音量、未知语音报错、空文本报错、中途取消。
 
+## Web 设置页（默认音色 / 语速 / 音量）
+
+插件带一个 **Web 设置页分区**（设置 → 语音播报）：
+音色下拉（列表来自本机已安装语音）、语速滑杆（-10 ~ 10）、音量滑杆（0 ~ 100）。
+改动持久化到 `settings.yaml` 的 `dsh-tts` 小节，作为 `speak` 工具在调用参数未显式指定时的默认值。
+
+> ⚠️ **已知前提（DSH 0.1.0-rc.6）**：Web 客户端能读写的 settings namespace 由核心包
+> `dsh-host-apiproxy` 的 `WEB_SETTINGS_NAMESPACES` 白名单控制（官方源码注明"让插件自行暴露是
+> deferred work"）。要启用本分区，需要在该数组加一行 `"dsh-tts"`：
+> ```js
+> // node_modules/@deepseek-ai/dsh-host-apiproxy/lib/index.js
+> const WEB_SETTINGS_NAMESPACES = [
+>   "dsh-tts",          // ← 新增
+>   "agent-loop",
+>   ...
+> ];
+> ```
+> 建议先备份原文件再改；dsh 升级或清空 npx 缓存后需重新添加。改完重启 dsh 生效。
+
 ## 前置条件与常见问题
 
 - **Windows**：依赖系统自带的 SAPI 语音引擎（`powershell.exe` 与 `SAPI.SpVoice`）。

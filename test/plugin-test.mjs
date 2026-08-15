@@ -9,12 +9,24 @@ const pluginRoot = path.resolve(__dirname, "..");
 
 const plugin = await import(path.join(pluginRoot, "index.js"));
 const registered = [];
-plugin.apply({
+// 可变的假设置值：默认空（走自动选择），需要时可改为自定义默认值
+let fakeSettings = { voice: "", rate: 0, volume: 100, voices: [] };
+const settingsStub = {
+  settings: {
+    register: () => ({
+      get: () => fakeSettings
+    })
+  }
+};
+await plugin.apply({
   tools: {
     register: (def) => {
       registered.push(def);
       return () => {};
     }
+  },
+  inject: (_deps, callback) => {
+    callback(settingsStub);
   }
 });
 
@@ -86,6 +98,16 @@ try {
   err3 = e;
 }
 check("中途取消报错", !!err3 && /取消/.test(String(err3 && err3.message)), err3 && err3.message);
+
+// ---- 设置页默认值：未显式指定时使用设置里的音色/语速/音量 ----
+fakeSettings = { voice: "Tingting", rate: 3, volume: 42, voices: ["Tingting", "Meijia"] };
+const rDef = await speak.execute({ text: "defaults from settings" }, { signal: freshSignal() });
+check(
+  "speak 使用设置默认值（voice/rate/volume）",
+  rDef.ok === true && /Tingting/.test(rDef.voice) && rDef.rate === 3 && rDef.volume === 42,
+  JSON.stringify(rDef)
+);
+fakeSettings = { voice: "", rate: 0, volume: 100, voices: [] };
 
 // ---- render 输出 ----
 const view = speak.output.render(
