@@ -1,4 +1,4 @@
-# dsh-tts
+# dsh-plugin-speaker
 
 文字转语音播报插件（DSH / DeepSeek Harness 插件）。Agent 通过调用插件注册的工具，把一段文字转成语音并从**默认扬声器**播放出来。
 
@@ -40,15 +40,15 @@
 把本目录复制到 profile 的 hoisted node_modules，并在 `cordis.patch.yml` 里 insert 一行：
 
 ```powershell
-# 1. 复制插件（以 web profile 为例；Windows 下示例路径为 D:\ds-dev-home\dsh-tts）
-Copy-Item -Recurse <插件路径>\dsh-tts <profile目录>\profiles\node_modules\dsh-tts
+# 1. 复制插件（以 web profile 为例；Windows 下示例路径为 D:\ds-dev-home\dsh-plugin-speaker）
+Copy-Item -Recurse <插件路径>\dsh-plugin-speaker <profile目录>\profiles\node_modules\dsh-plugin-speaker
 ```
 
 ```yaml
 # 2. 编辑 <profile目录>\profiles\<profile名>\cordis.patch.yml，追加：
 - insert:
-    - id: dsh-tts
-      name: 'dsh-tts'
+    - id: dsh-plugin-speaker
+      name: 'dsh-plugin-speaker'
 ```
 
 ```powershell
@@ -88,7 +88,7 @@ Copy-Item -Recurse <插件路径>\dsh-tts <profile目录>\profiles\node_modules\
 本地测试脚本会直接加载插件、用 mock ctx 注册工具并真实朗读（低音量）：
 
 ```bash
-cd dsh-tts
+cd dsh-plugin-speaker
 mkdir -p node_modules/@deepseek-ai
 ln -s <DSH缓存>/node_modules/@deepseek-ai/dsh-tools node_modules/@deepseek-ai/dsh-tools
 node test/plugin-test.mjs
@@ -100,15 +100,15 @@ node test/plugin-test.mjs
 
 插件带一个 **Web 设置页分区**（设置 → 语音播报）：
 音色下拉（列表来自本机已安装语音）、语速滑杆（-10 ~ 10）、音量滑杆（0 ~ 100）。
-改动持久化到 `settings.yaml` 的 `dsh-tts` 小节，作为 `speak` 工具在调用参数未显式指定时的默认值。
+改动持久化到 `settings.yaml` 的 `dsh-plugin-speaker` 小节，作为 `speak` 工具在调用参数未显式指定时的默认值。
 
 > ⚠️ **已知前提（DSH 0.1.0-rc.6）**：Web 客户端能读写的 settings namespace 由核心包
 > `dsh-host-apiproxy` 的 `WEB_SETTINGS_NAMESPACES` 白名单控制（官方源码注明"让插件自行暴露是
-> deferred work"）。要启用本分区，需要在该数组加一行 `"dsh-tts"`：
+> deferred work"）。要启用本分区，需要在该数组加一行 `"dsh-plugin-speaker"`：
 > ```js
 > // node_modules/@deepseek-ai/dsh-host-apiproxy/lib/index.js
 > const WEB_SETTINGS_NAMESPACES = [
->   "dsh-tts",          // ← 新增
+>   "dsh-plugin-speaker",  // ← 新增
 >   "agent-loop",
 >   ...
 > ];

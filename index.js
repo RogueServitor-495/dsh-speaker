@@ -1,4 +1,4 @@
-// dsh-tts：文字转语音播报插件。
+// dsh-plugin-speaker：文字转语音播报插件。
 // 注册两个工具：
 //   - speak       把文字朗读出来并从默认扬声器播放
 //   - tts_voices  列出系统已安装的语音
@@ -21,7 +21,7 @@ import * as macos from "./macos.mjs";
 import { settingsNamespace } from "@deepseek-ai/dsh-settings";
 import z from "@deepseek-ai/schemastery";
 
-export const name = "dsh-tts";
+export const name = "dsh-plugin-speaker";
 export const inject = ["tools"];
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -35,7 +35,7 @@ const CJK_RE = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uf900-\ufaff\uff00-\uff
 
 // Web 设置页命名空间：默认音色 / 语速 / 音量（持久化到 settings.yaml）。
 // voices 为只读的本机语音列表（注册时快照），供设置页下拉选择。
-const SETTINGS_NAMESPACE = settingsNamespace("dsh-tts");
+const SETTINGS_NAMESPACE = settingsNamespace("dsh-plugin-speaker");
 const TtsSettingsSchema = z.object({
   voice: z.string().default(""),
   rate: z.number().default(0),
@@ -114,9 +114,9 @@ async function speakText(text, voice, rate, volume, signal) {
     return macos.speakText(text, { voice, rate, volume }, signal);
   }
   if (PLATFORM !== "win32") {
-    throw new Error(`dsh-tts 暂不支持当前平台 ${PLATFORM}：仅支持 Windows (SAPI) 与 macOS (say)。`);
+    throw new Error(`dsh-plugin-speaker 暂不支持当前平台 ${PLATFORM}：仅支持 Windows (SAPI) 与 macOS (say)。`);
   }
-  const dir = await mkdtemp(join(tmpdir(), "dsh-tts-"));
+  const dir = await mkdtemp(join(tmpdir(), "dsh-plugin-speaker-"));
   const textFile = join(dir, "speech.txt");
   try {
     await writeFile(textFile, text, "utf8");
@@ -340,7 +340,7 @@ export async function apply(ctx) {
         };
       }
       if (PLATFORM !== "win32") {
-        throw new Error(`dsh-tts 暂不支持当前平台 ${PLATFORM}：仅支持 Windows (SAPI) 与 macOS (say)。`);
+        throw new Error(`dsh-plugin-speaker 暂不支持当前平台 ${PLATFORM}：仅支持 Windows (SAPI) 与 macOS (say)。`);
       }
       const { stdout } = await runPowershell(["-List"], exec.signal);
       const voices = stdout

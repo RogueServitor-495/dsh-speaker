@@ -1,4 +1,4 @@
-// plugin-test.mjs —— dsh-tts 插件本地测试（macOS 环境）。
+// plugin-test.mjs —— dsh-plugin-speaker 插件本地测试（macOS 环境）。
 // 直接加载插件 index.js，用 mock ctx 注册工具，再调用 execute 做真实朗读测试。
 // 运行：node test/plugin-test.mjs
 import path from "node:path";

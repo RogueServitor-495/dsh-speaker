@@ -1,5 +1,5 @@
 {
-  "name": "dsh-tts",
+  "name": "dsh-plugin-speaker",
   "version": "1.2.0",
   "description": "文字转语音播报插件：speak / tts_voices 工具 + Web 设置页（默认音色/语速/音量）。Windows 基于 SAPI（speech.ps1），macOS 基于 say/afplay（macos.mjs），均离线可用。",
   "type": "module",

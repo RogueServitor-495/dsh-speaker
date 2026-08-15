@@ -1,4 +1,4 @@
-# speech.ps1 - Windows SAPI speech helper invoked by the dsh-tts plugin.
+# speech.ps1 - Windows SAPI speech helper invoked by the dsh-plugin-speaker plugin.
 # Do NOT run directly; index.js calls it via powershell.exe -File.
 param(
   [string]$TextFile = "",

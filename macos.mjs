@@ -1,4 +1,4 @@
-// macos.mjs —— dsh-tts 插件的 macOS 语音后端。
+// macos.mjs —— dsh-plugin-speaker 插件的 macOS 语音后端。
 // 基于 macOS 自带的 say / afplay（均为系统组件，离线可用，无需联网 / API Key）：
 //   - say -v '?'       枚举已安装语音，输出 "名称<TAB>地区<TAB># 示例"
 //   - say -v <语音> -r <词速> -o <音频文件> -f <文本文件>   合成音频
@@ -150,7 +150,7 @@ export async function speakText(text, { voice = "", rate = 0, volume = 100 } = {
     }
   }
 
-  const dir = await mkdtemp(join(tmpdir(), "dsh-tts-"));
+  const dir = await mkdtemp(join(tmpdir(), "dsh-plugin-speaker-"));
   const textFile = join(dir, "speech.txt");
   const audioFile = join(dir, "speech.aiff");
   try {
